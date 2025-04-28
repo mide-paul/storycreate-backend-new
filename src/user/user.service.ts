@@ -1,0 +1,348 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import * as jwt from "jsonwebtoken";
+import * as bcrypt from 'bcryptjs';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
+import { ConfigService } from "@nestjs/config";
+import { UserTokenStruct } from "src/core/struct";
+import { AccessLevel } from "src/core/enums";
+import { AuthUserDto } from "./dto/auth-user.dto";
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from '../schemas/user.schema';
+import { Role, RoleDocument } from '../schemas/role.schema';
+import { Person, PersonDocument } from '../schemas/person.schema';
+import { Creator, CreatorDocument } from '../schemas/creator.schema';
+import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
+// import { AuthTokenGuard } from "src/interceptors/validator";
+
+@Injectable()
+export class UserService {
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @InjectModel(Person.name) private personModel: Model<PersonDocument>,
+    @InjectModel(Creator.name) private creatorModel: Model<CreatorDocument>,
+    private config: ConfigService,
+  ) {}
+
+  async create(createUserDto: CreateUserDto): Promise<UserDocument> {
+    const userExists = await this.userModel.findOne({ email: createUserDto.email }).exec();
+    if (userExists) {
+      throw new ConflictException("User already exists");
+    }
+
+    const userRole = await this.roleModel.findOne({ name: "user" }).exec();
+    if (!userRole) {
+      throw new NotFoundException("User registration is not available at the moment");
+    }
+
+    const person = new this.personModel({
+      firstName: createUserDto.firstName,
+      lastName: createUserDto.lastName,
+    });
+    await person.save();
+
+    const user = new this.userModel({
+      email: createUserDto.email,
+      password: await bcrypt.hash(createUserDto.password, 10),
+      roles: [userRole._id],
+      person: person._id,
+    });
+    await user.save();
+
+    const token = jwt.sign(
+      {
+        email: user.email,
+        roles: [userRole.name],
+      },
+      this.config.getOrThrow("JWT_SECRET") as string,
+      { expiresIn: "1h" },
+    );
+    const refreshToken = jwt.sign(
+      { token },
+      this.config.getOrThrow("JWT_REFRESH_SECRET") as string,
+      { expiresIn: "7d" },
+    );
+
+    return user;
+  }
+
+  async findAll(): Promise<UserDocument[]> {
+    return this.userModel.find().populate('person').populate('roles').exec();
+  }
+
+  async findOne(id: string): Promise<UserDocument> {
+    const user = await this.userModel.findById(id).populate('person').populate('roles').exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+
+  async findByEmail(email: string): Promise<UserDocument> {
+    const user = await this.userModel.findOne({ email }).populate('person').populate('roles').exec();
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+    return user;
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserDocument> {
+    const user = await this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+
+  async remove(id: string): Promise<UserDocument> {
+    const user = await this.userModel.findByIdAndDelete(id).exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+
+  async findRoles(): Promise<RoleDocument[]> {
+    return this.roleModel.find().exec();
+  }
+
+  async findRoleByName(name: string): Promise<RoleDocument> {
+    const role = await this.roleModel.findOne({ name }).exec();
+    if (!role) {
+      throw new NotFoundException(`Role with name ${name} not found`);
+    }
+    return role;
+  }
+
+  async createRole(name: string, description?: string): Promise<RoleDocument> {
+    const createdRole = new this.roleModel({ name, description });
+    return createdRole.save();
+  }
+
+  async assignRoleToUser(userId: string, roleId: string): Promise<UserDocument> {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $addToSet: { roles: roleId } },
+      { new: true }
+    ).exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    return user;
+  }
+
+  async removeRoleFromUser(userId: string, roleId: string): Promise<UserDocument> {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $pull: { roles: roleId } },
+      { new: true }
+    ).exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    return user;
+  }
+
+  async login(loginDto: AuthUserDto): Promise<{ message: string; data: any }> {
+    const user = await this.userModel.findOne({ email: loginDto.email })
+      .populate<{ person: PersonDocument }>('person')
+      .populate<{ roles: RoleDocument[] }>('roles')
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException("Account not found");
+    }
+
+    if (!user.password) {
+        throw new UnauthorizedException("Invalid password");
+      }
+
+    if (await bcrypt.compare(loginDto.password, user.password)) {
+        const token = jwt.sign(
+          {
+          id: user._id,
+          email: user.email,
+          roles: user.roles.map((role) => role.name),
+          },
+          this.config.getOrThrow("JWT_SECRET") as string,
+          { expiresIn: "1h" },
+        );
+        const refreshToken = jwt.sign(
+          { token },
+          this.config.getOrThrow("JWT_REFRESH_SECRET") as string,
+          { expiresIn: "7d" },
+        );
+
+        return {
+        message: `Welcome back 👋🏽, ${user.person.firstName}`,
+          data: {
+          firstName: user.person.firstName,
+          lastName: user.person.lastName,
+          email: user.email,
+          roles: user.roles,
+            token,
+            refreshToken,
+          },
+        };
+      }
+
+      throw new UnauthorizedException("Invalid password");
+  }
+
+  async validate(token: string, accessLevel: AccessLevel) {
+    try {
+      const secret = this.config.getOrThrow("JWT_SECRET");
+      const decoded: UserTokenStruct = jwt.verify(token, secret) as UserTokenStruct;
+
+      const user = await this.userModel.findById(decoded.id)
+        .populate('roles')
+        .populate('person')
+        .exec();
+
+      if (!user) {
+        throw new NotFoundException("User not found");
+      }
+
+      const hasRequiredRole = user.roles.some((role: any) => role.name === accessLevel);
+      if (!hasRequiredRole) {
+          throw new UnauthorizedException("Unauthorized");
+      }
+
+      return {
+        isValid: true,
+        user,
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        user: null,
+      };
+    }
+  }
+
+  async getAll(token: string): Promise<UserDocument[]> {
+      const isAdmin = await this.validate(token, AccessLevel.ADMINISTRATOR);
+    const isSuperAdmin = await this.validate(token, AccessLevel.SUPER_ADMINISTRATOR);
+
+      if (!isAdmin.isValid && !isSuperAdmin.isValid) {
+      throw new UnauthorizedException("Access Denied");
+    }
+
+    const users = await this.userModel.find()
+      .populate('person')
+      .populate('roles')
+      .exec();
+
+    return users.map(user => {
+        user.password = undefined;
+        return user;
+    });
+  }
+
+  async getUserFromToken(token: string): Promise<UserDocument> {
+    try {
+      const decoded = jwt.verify(token, this.config.getOrThrow("JWT_SECRET")) as { userId: string };
+      const user = await this.userModel.findById(decoded.userId).exec();
+      if (!user) {
+        throw new InternalServerErrorException("User not found");
+      }
+      return user;
+    } catch (error) {
+      throw new InternalServerErrorException("Invalid token");
+    }
+  }
+
+  // Find user by email
+  async findByEmailMongoose(email: string): Promise<User | null> {
+    return this.userModel.findOne({ email }).exec();
+  }
+
+  async getProfileByUserId(userId: string) {
+    const user = await this.userModel
+      .findById(userId)
+      .populate<{ person: PersonDocument }>("person")
+      .populate<{ roles: RoleDocument[] }>("roles")
+      .populate<{ creator: CreatorDocument | null }>({
+        path: "creator",
+        model: Creator.name,
+      })
+      .exec();
+
+    if (!user) throw new NotFoundException("User not found");
+
+    const creatorDoc = user.creator;
+
+    return {
+      message: "User profile retrieved successfully",
+      data: {
+        id: user.id,
+        email: user.email,
+        person: {
+          firstName: user.person.firstName,
+          lastName: user.person.lastName,
+          profilePicture: user.person.profilePicture,
+        },
+        roles: user.roles.map((r) => ({ name: r.name })),
+        creator: creatorDoc
+          ? {
+              bio:         creatorDoc.bio,
+              profession:  creatorDoc.profession,
+              location:    creatorDoc.location,
+              interests:   creatorDoc.interests,
+              instagram:   creatorDoc.instagram,
+              facebook:    creatorDoc.facebook,
+              linkedin:    creatorDoc.linkedin,
+            }
+          : null,
+      },
+    };
+  }
+
+  async updateProfileByUserId(
+    userId: string,
+    dto: UpdateUserProfileDto,
+  ) {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) throw new NotFoundException('User not found');
+
+    // update Person fields
+    const personUpdate: Partial<Person> = {};
+    if (dto.firstName)      personUpdate.firstName      = dto.firstName;
+    if (dto.lastName)       personUpdate.lastName       = dto.lastName;
+    if (dto.otherName)      personUpdate.middleName     = dto.otherName;
+    if (dto.dateOfBirth)    personUpdate.dateOfBirth    = new Date(dto.dateOfBirth);
+    if (dto.gender)         personUpdate.gender         = dto.gender;
+    if (dto.profilePicture) personUpdate.profilePicture = dto.profilePicture;
+    if (dto.bio)            personUpdate.bio        = dto.bio;
+    if (dto.profession)     personUpdate.profession = dto.profession;
+    if (dto.location)       personUpdate.location   = dto.location;
+    if (dto.interests)      personUpdate.interests  = dto.interests;
+    if (dto.instagram)      personUpdate.instagram  = dto.instagram;
+    if (dto.facebook)       personUpdate.facebook   = dto.facebook;
+    if (dto.linkedin)       personUpdate.linkedin   = dto.linkedin;
+
+    await this.personModel.findByIdAndUpdate(user.person, personUpdate).exec();
+
+    // update Creator fields (bio, profession, etc.)
+    const creatorUpdate: Partial<Creator> = {};
+    if (dto.bio)        creatorUpdate.bio        = dto.bio;
+    if (dto.profession) creatorUpdate.profession = dto.profession;
+    if (dto.location)   creatorUpdate.location   = dto.location;
+    if (dto.interests)  creatorUpdate.interests  = dto.interests;
+    if (dto.instagram)  creatorUpdate.instagram  = dto.instagram;
+    if (dto.facebook)   creatorUpdate.facebook   = dto.facebook;
+    if (dto.linkedin)   creatorUpdate.linkedin   = dto.linkedin;
+    await this.creatorModel.findOneAndUpdate({ user: userId }, creatorUpdate).exec();
+
+    return this.getProfileByUserId(userId);
+  }
+}

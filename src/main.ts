@@ -1,0 +1,53 @@
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import { ValidationPipe } from "@nestjs/common";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import * as cookieParser from "cookie-parser";
+import { json, urlencoded } from "express";
+
+async function bootstrap() {
+  try {
+    const app = await NestFactory.create(AppModule);
+    // Set a base URL prefix for all routes
+    app.setGlobalPrefix('api/v1');
+
+    // Increase the payload size limit for webhooks
+    app.use(json({ limit: "50mb" }));
+    app.use(urlencoded({ limit: "50mb", extended: true }));
+
+    // Allow requests from both FRONTEND_URL and FRONTEND_LOCAL
+    const allowedOrigins = [
+      process.env.FRONTEND_LOCAL || 'http://localhost:3000',
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      process.env.WEBAPP_URL || 'http://localhost:3000',
+    ].filter(Boolean);
+
+    app.enableCors({
+      origin: allowedOrigins,
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+      credentials: true,
+    });
+
+    const config = new DocumentBuilder()
+      .setTitle("StoryCreate API")
+      .setDescription("StoryCreate API documentation")
+      .setVersion("1.0")
+      .addTag("StoryCreate")
+      .setBasePath("api/v1")
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup("api/v:version/docs", app, document);
+
+    app.use(cookieParser());
+    app.useGlobalPipes(new ValidationPipe());
+
+    await app.listen(3001);
+    console.log('Application is running on: http://localhost:3001');
+  } catch (error) {
+    console.error('Error during application startup:', error);
+    process.exit(1);
+  }
+}
+
+bootstrap();
