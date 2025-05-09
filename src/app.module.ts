@@ -10,6 +10,10 @@ import { Role, RoleSchema } from './schemas/role.schema';
 import { RoleSeeder } from './scripts/seed-roles';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Validator, AuthTokenGuard } from './interceptors/validator';
+import { PostModule } from './post/post.module';
+import { NotificationModule } from './notification/notification.module';
+import { NotificationSettingsModule } from './notification-settings/notification-settings.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -21,6 +25,10 @@ import { Validator, AuthTokenGuard } from './interceptors/validator';
     CreatorModule,
     UserModule,
     MediaModule,
+    PostModule,
+    NotificationModule,
+    NotificationSettingsModule,
+    MessagesModule,
   ],
   controllers: [AppController],
   providers: [

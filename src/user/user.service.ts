@@ -15,7 +15,7 @@ import { UserTokenStruct } from "src/core/struct";
 import { AccessLevel } from "src/core/enums";
 import { AuthUserDto } from "./dto/auth-user.dto";
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../schemas/user.schema';
 import { Role, RoleDocument } from '../schemas/role.schema';
 import { Person, PersonDocument } from '../schemas/person.schema';
@@ -31,7 +31,7 @@ export class UserService {
     @InjectModel(Person.name) private personModel: Model<PersonDocument>,
     @InjectModel(Creator.name) private creatorModel: Model<CreatorDocument>,
     private config: ConfigService,
-  ) {}
+  ) { }
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     const userExists = await this.userModel.findOne({ email: createUserDto.email }).exec();
@@ -163,39 +163,39 @@ export class UserService {
     }
 
     if (!user.password) {
-        throw new UnauthorizedException("Invalid password");
-      }
+      throw new UnauthorizedException("Invalid password");
+    }
 
     if (await bcrypt.compare(loginDto.password, user.password)) {
-        const token = jwt.sign(
-          {
+      const token = jwt.sign(
+        {
           id: user._id,
           email: user.email,
           roles: user.roles.map((role) => role.name),
-          },
-          this.config.getOrThrow("JWT_SECRET") as string,
-          { expiresIn: "1h" },
-        );
-        const refreshToken = jwt.sign(
-          { token },
-          this.config.getOrThrow("JWT_REFRESH_SECRET") as string,
-          { expiresIn: "7d" },
-        );
+        },
+        this.config.getOrThrow("JWT_SECRET") as string,
+        { expiresIn: "1h" },
+      );
+      const refreshToken = jwt.sign(
+        { token },
+        this.config.getOrThrow("JWT_REFRESH_SECRET") as string,
+        { expiresIn: "7d" },
+      );
 
-        return {
+      return {
         message: `Welcome back 👋🏽, ${user.person.firstName}`,
-          data: {
+        data: {
           firstName: user.person.firstName,
           lastName: user.person.lastName,
           email: user.email,
           roles: user.roles,
-            token,
-            refreshToken,
-          },
-        };
-      }
+          token,
+          refreshToken,
+        },
+      };
+    }
 
-      throw new UnauthorizedException("Invalid password");
+    throw new UnauthorizedException("Invalid password");
   }
 
   async validate(token: string, accessLevel: AccessLevel) {
@@ -214,7 +214,7 @@ export class UserService {
 
       const hasRequiredRole = user.roles.some((role: any) => role.name === accessLevel);
       if (!hasRequiredRole) {
-          throw new UnauthorizedException("Unauthorized");
+        throw new UnauthorizedException("Unauthorized");
       }
 
       return {
@@ -230,10 +230,10 @@ export class UserService {
   }
 
   async getAll(token: string): Promise<UserDocument[]> {
-      const isAdmin = await this.validate(token, AccessLevel.ADMINISTRATOR);
+    const isAdmin = await this.validate(token, AccessLevel.ADMINISTRATOR);
     const isSuperAdmin = await this.validate(token, AccessLevel.SUPER_ADMINISTRATOR);
 
-      if (!isAdmin.isValid && !isSuperAdmin.isValid) {
+    if (!isAdmin.isValid && !isSuperAdmin.isValid) {
       throw new UnauthorizedException("Access Denied");
     }
 
@@ -243,8 +243,8 @@ export class UserService {
       .exec();
 
     return users.map(user => {
-        user.password = undefined;
-        return user;
+      user.password = undefined;
+      return user;
     });
   }
 
@@ -267,19 +267,25 @@ export class UserService {
   }
 
   async getProfileByUserId(userId: string) {
+    console.log('getProfileByUserId called with userId:', userId);
     const user = await this.userModel
       .findById(userId)
       .populate<{ person: PersonDocument }>("person")
       .populate<{ roles: RoleDocument[] }>("roles")
-      .populate<{ creator: CreatorDocument | null }>({
-        path: "creator",
-        model: Creator.name,
-      })
       .exec();
 
     if (!user) throw new NotFoundException("User not found");
 
-    const creatorDoc = user.creator;
+    console.log('getProfileByUserId called with userId:', userId);
+    console.log('User creator field:', user.creator);
+
+    // Fetch creator document separately by user.creator ObjectId
+    let creatorDoc: CreatorDocument | null = null;
+    if (user.creator) {
+      console.log('Looking for creator document with id:', user.creator);
+      creatorDoc = await this.creatorModel.findById(user.creator).exec();
+      console.log('Fetched creator document:', creatorDoc);
+    }
 
     return {
       message: "User profile retrieved successfully",
@@ -292,17 +298,7 @@ export class UserService {
           profilePicture: user.person.profilePicture,
         },
         roles: user.roles.map((r) => ({ name: r.name })),
-        creator: creatorDoc
-          ? {
-              bio:         creatorDoc.bio,
-              profession:  creatorDoc.profession,
-              location:    creatorDoc.location,
-              interests:   creatorDoc.interests,
-              instagram:   creatorDoc.instagram,
-              facebook:    creatorDoc.facebook,
-              linkedin:    creatorDoc.linkedin,
-            }
-          : null,
+        creator: creatorDoc,
       },
     };
   }
@@ -311,37 +307,97 @@ export class UserService {
     userId: string,
     dto: UpdateUserProfileDto,
   ) {
+    console.log('updateProfileByUserId called with userId:', userId);
     const user = await this.userModel.findById(userId).exec();
     if (!user) throw new NotFoundException('User not found');
 
     // update Person fields
     const personUpdate: Partial<Person> = {};
-    if (dto.firstName)      personUpdate.firstName      = dto.firstName;
-    if (dto.lastName)       personUpdate.lastName       = dto.lastName;
-    if (dto.otherName)      personUpdate.middleName     = dto.otherName;
-    if (dto.dateOfBirth)    personUpdate.dateOfBirth    = new Date(dto.dateOfBirth);
-    if (dto.gender)         personUpdate.gender         = dto.gender;
+    if (dto.firstName) personUpdate.firstName = dto.firstName;
+    if (dto.lastName) personUpdate.lastName = dto.lastName;
+    if (dto.otherName) personUpdate.middleName = dto.otherName;
+    if (dto.dateOfBirth) personUpdate.dateOfBirth = new Date(dto.dateOfBirth);
+    if (dto.gender) personUpdate.gender = dto.gender;
     if (dto.profilePicture) personUpdate.profilePicture = dto.profilePicture;
-    if (dto.bio)            personUpdate.bio        = dto.bio;
-    if (dto.profession)     personUpdate.profession = dto.profession;
-    if (dto.location)       personUpdate.location   = dto.location;
-    if (dto.interests)      personUpdate.interests  = dto.interests;
-    if (dto.instagram)      personUpdate.instagram  = dto.instagram;
-    if (dto.facebook)       personUpdate.facebook   = dto.facebook;
-    if (dto.linkedin)       personUpdate.linkedin   = dto.linkedin;
+    if (dto.bio) personUpdate.bio = dto.bio;
+    if (dto.profession) personUpdate.profession = dto.profession;
+    if (dto.location) personUpdate.location = dto.location;
+    if (dto.interests) personUpdate.interests = dto.interests;
+    if (dto.instagram) personUpdate.instagram = dto.instagram;
+    if (dto.facebook) personUpdate.facebook = dto.facebook;
+    if (dto.linkedin) personUpdate.linkedin = dto.linkedin;
 
     await this.personModel.findByIdAndUpdate(user.person, personUpdate).exec();
 
     // update Creator fields (bio, profession, etc.)
     const creatorUpdate: Partial<Creator> = {};
-    if (dto.bio)        creatorUpdate.bio        = dto.bio;
+    if (dto.bio) creatorUpdate.bio = dto.bio;
     if (dto.profession) creatorUpdate.profession = dto.profession;
-    if (dto.location)   creatorUpdate.location   = dto.location;
-    if (dto.interests)  creatorUpdate.interests  = dto.interests;
-    if (dto.instagram)  creatorUpdate.instagram  = dto.instagram;
-    if (dto.facebook)   creatorUpdate.facebook   = dto.facebook;
-    if (dto.linkedin)   creatorUpdate.linkedin   = dto.linkedin;
-    await this.creatorModel.findOneAndUpdate({ user: userId }, creatorUpdate).exec();
+    if (dto.location) creatorUpdate.location = dto.location;
+    if (dto.interests && dto.interests.length > 0) creatorUpdate.interests = dto.interests;
+    if (dto.instagram) creatorUpdate.instagram = dto.instagram;
+    if (dto.facebook) creatorUpdate.facebook = dto.facebook;
+    if (dto.linkedin) creatorUpdate.linkedin = dto.linkedin;
+
+    // Convert userId to ObjectId for queries
+    const userObjectId = new Types.ObjectId(userId);
+
+    // Check if creator document exists for user
+    let existingCreator = await this.creatorModel.findOne({ user: userObjectId }).exec();
+    if (existingCreator) {
+      existingCreator = await this.creatorModel.findOneAndUpdate(
+        { user: userObjectId },
+        creatorUpdate,
+        { new: true }
+      ).exec();
+      if (!existingCreator) {
+        throw new InternalServerErrorException('Failed to update creator document');
+      }
+      // Explicitly set the creator field in the user document
+      try {
+        console.log('Updating user document creator field for userObjectId:', userObjectId, 'with creatorId:', existingCreator._id);
+        const updateResult = await this.userModel.updateOne(
+          { _id: userObjectId },
+          { $set: { creator: existingCreator._id } }
+        ).exec();
+        console.log('Update result:', updateResult);
+        if (updateResult.modifiedCount === 0) {
+          console.warn('No documents modified during user creator update, but update is considered successful');
+          // Do not throw error here because the field might already be set to the same value
+        }
+        console.log('User document updated with creator field:', updateResult);
+      } catch (error) {
+        console.error('Error updating user creator field:', error);
+        throw new InternalServerErrorException('Failed to update user with creator reference');
+      }
+      return this.getProfileByUserId(userId);
+    } else {
+      // Create new creator document with userId and creatorUpdate fields
+      const newCreator = new this.creatorModel({
+        user: userObjectId,
+        uid: userId,
+        ...creatorUpdate,
+      });
+      const savedCreator = await newCreator.save();
+      if (!savedCreator) {
+        throw new InternalServerErrorException('Failed to create creator document');
+      }
+
+      // Update user document's creator field with new creator id
+      try {
+        const updateResult = await this.userModel.updateOne(
+          { _id: userObjectId },
+          { $set: { creator: savedCreator._id } }
+        ).exec();
+        if (updateResult.modifiedCount === 0) {
+          throw new InternalServerErrorException('Failed to update user with creator reference');
+        }
+        console.log('User document updated with creator field:', updateResult);
+      } catch (error) {
+        console.error('Error updating user creator field:', error);
+        throw new InternalServerErrorException('Failed to update user with creator reference');
+      }
+    }
 
     return this.getProfileByUserId(userId);
   }

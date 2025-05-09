@@ -1,0 +1,61 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { Conversation } from './schemas/conversation.schema';
+import { Message } from './schemas/message.schema';
+
+@Injectable()
+export class MessagesService {
+  constructor(
+    @InjectModel(Conversation.name) private conversationModel: Model<Conversation>,
+    @InjectModel(Message.name) private messageModel: Model<Message>,
+  ) {}
+
+  async findAll(): Promise<Conversation[]> {
+    return this.conversationModel.find()
+      .populate('participants', '-password')
+      .populate({
+        path: 'messages',
+        populate: { path: 'sender', select: '-password' },
+      })
+      .exec();
+  }
+
+  async search(query: string): Promise<Conversation[]> {
+    // Find messages matching query
+    const messages = await this.messageModel.find({
+      content: { $regex: query, $options: 'i' },
+    }).exec();
+
+    const conversationIds = [...new Set(messages.map(msg => msg.conversation.toString()))];
+
+    return this.conversationModel.find({ _id: { $in: conversationIds } })
+      .populate('participants', '-password')
+      .populate({
+        path: 'messages',
+        match: { content: { $regex: query, $options: 'i' } },
+        populate: { path: 'sender', select: '-password' },
+      })
+      .exec();
+  }
+
+  async sendMessage(conversationId: string, content: string, senderId: string): Promise<Message> {
+    const conversation = await this.conversationModel.findById(conversationId);
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    const message: import('mongoose').Document & Message = new this.messageModel({
+      conversation: conversation._id,
+      sender: new Types.ObjectId(senderId),
+      content,
+    });
+
+    await message.save();
+
+    conversation.messages.push(message._id as Types.ObjectId);
+    await conversation.save();
+
+    return await message.populate('sender', '-password');
+  }
+}
