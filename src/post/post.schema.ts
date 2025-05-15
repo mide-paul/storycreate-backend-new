@@ -33,6 +33,9 @@ export class Post {
 
   @Prop({ type: [CommentSchema], default: [] })
   comments: Comment[];
+
+  @Prop({ type: Types.ObjectId, ref: 'Community', required: false })
+  communityId?: Types.ObjectId;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);

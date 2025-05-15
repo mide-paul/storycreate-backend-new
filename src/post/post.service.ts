@@ -14,7 +14,7 @@ export class PostService {
     private readonly mediaService: MediaService,
   ) {}
 
-  async createPost(createPostDto: CreatePostDto, file?: Express.Multer.File): Promise<Post> {
+  async createPost(createPostDto: CreatePostDto, file?: Express.Multer.File, communityId?: string): Promise<Post> {
     try {
       let imageUrl: string | undefined = undefined;
 
@@ -26,13 +26,19 @@ export class PostService {
         imageUrl = uploadResult.url;
       }
 
-      const createdPost = new this.postModel({
+      const postData: any = {
         author: createPostDto.author,
         text: createPostDto.text,
         imageUrl,
         likes: 0,
         comments: [],
-      });
+      };
+
+      if (communityId) {
+        postData.communityId = new Types.ObjectId(communityId);
+      }
+
+      const createdPost = new this.postModel(postData);
 
       return await createdPost.save();
     } catch (error) {
@@ -42,7 +48,11 @@ export class PostService {
   }
 
   async getPosts(): Promise<Post[]> {
-    return this.postModel.find().sort({ createdAt: -1 }).exec();
+    return this.postModel.find({ communityId: { $exists: false } }).sort({ createdAt: -1 }).exec();
+  }
+
+  async getPostsByCommunity(communityId: string): Promise<Post[]> {
+    return this.postModel.find({ communityId: new Types.ObjectId(communityId) }).sort({ createdAt: -1 }).exec();
   }
 
   async likePost(postId: string, likePostDto: LikePostDto): Promise<Post> {

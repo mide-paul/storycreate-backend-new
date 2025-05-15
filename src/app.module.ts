@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CommunityModule } from './community/community.module';
+import { StoriesModule } from './stories/stories.module';
 import { CreatorModule } from './creator/creator.module';
 import { UserModule } from './user/user.module';
 import { MediaModule } from './media/media.module';
@@ -14,6 +16,8 @@ import { PostModule } from './post/post.module';
 import { NotificationModule } from './notification/notification.module';
 import { NotificationSettingsModule } from './notification-settings/notification-settings.module';
 import { MessagesModule } from './messages/messages.module';
+import { LibraryModule } from './library/library.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -29,6 +33,10 @@ import { MessagesModule } from './messages/messages.module';
     NotificationModule,
     NotificationSettingsModule,
     MessagesModule,
+    StoriesModule,
+    LibraryModule,
+    DashboardModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [

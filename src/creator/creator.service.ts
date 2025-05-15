@@ -14,7 +14,7 @@ import { AuthCreatorDto } from "./dto/auth-creator.dto";
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from "@nestjs/config";
 import { GoogleAuthCreatorDto } from "./dto/google-auth-creator.dto";
-import { AccessLevel, AccessMethod } from "src/core/enums";
+import { AccessLevel, AccessMethod } from "../core/enums";
 import { OAuth2Client } from "google-auth-library";
 import { UserService } from "src/user/user.service";
 import { MediaService } from "src/media/media.service";

@@ -3,7 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Media } from "../schemas/media.schema";
 import { ConfigService } from "@nestjs/config";
-import { upload, uploadImage } from "src/utils/uploader";
+import { uploadImage, uploadToGCS } from "src/utils/uploader";
 import md5 from "md5";
 
 @Injectable()
@@ -16,33 +16,16 @@ export class MediaService {
 
   async addMedia(file: Express.Multer.File) {
     try {
-      const uploadMedia = await upload({
-        url: this.configService.getOrThrow("DIGITALOCEAN_SPACES_ENDPOINT"),
-        forcePathStyle: true,
-        region: this.configService.getOrThrow("DIGITALOCEAN_SPACES_REGION"),
-        credentials: {
-          accessKeyId: this.configService.getOrThrow(
-            "DIGITALOCEAN_SPACES_ACCESS_KEY_ID",
-          ),
-          secretAccessKey: this.configService.getOrThrow(
-            "DIGITALOCEAN_SPACES_SECRET_ACCESS_KEY",
-          ),
-        },
-        bucket: {
-          Bucket: this.configService.getOrThrow("DIGITALOCEAN_SPACES_BUCKET"),
-          Key: file.originalname,
-          Body: file.buffer,
-          ACL: "public-read",
-          Metadata: {
-            "Content-Type": file.mimetype,
-          },
-        },
+      const bucketName = this.configService.getOrThrow("GCP_STORAGE_BUCKET");
+      const uploadMedia = await uploadToGCS({
+        bucketName,
+        fileName: file.originalname,
+        fileBuffer: file.buffer,
+        contentType: file.mimetype,
       });
 
       return {
-        url:
-          this.configService.getOrThrow("DIGITALOCEAN_SPACES_CDN_URL") +
-          uploadMedia?.url,
+        url: uploadMedia.url,
       };
     } catch (err) {
       throw new InternalServerErrorException(err);
@@ -56,33 +39,16 @@ export class MediaService {
 
       // check if the file is not an image
       if (!file.mimetype.startsWith("image")) {
-        const uploadMedia = await upload({
-          url: this.configService.getOrThrow("DIGITALOCEAN_SPACES_ENDPOINT"),
-          forcePathStyle: true,
-          region: this.configService.getOrThrow("DIGITALOCEAN_SPACES_REGION"),
-          credentials: {
-            accessKeyId: this.configService.getOrThrow(
-              "DIGITALOCEAN_SPACES_ACCESS_KEY_ID",
-            ),
-            secretAccessKey: this.configService.getOrThrow(
-              "DIGITALOCEAN_SPACES_SECRET_ACCESS_KEY",
-            ),
-          },
-          bucket: {
-            Bucket: this.configService.getOrThrow("DIGITALOCEAN_SPACES_BUCKET"),
-            Key: path + file.originalname,
-            Body: file.buffer,
-            ACL: "public-read",
-            Metadata: {
-              "Content-Type": file.mimetype,
-            },
-          },
+        const bucketName = this.configService.getOrThrow("GCP_STORAGE_BUCKET");
+        const uploadMedia = await uploadToGCS({
+          bucketName,
+          fileName: path + file.originalname,
+          fileBuffer: file.buffer,
+          contentType: file.mimetype,
         });
 
         return {
-          url:
-            this.configService.getOrThrow("DIGITALOCEAN_SPACES_CDN_URL") +
-            uploadMedia?.url,
+          url: uploadMedia.url,
           status: true,
         };
       }
@@ -90,17 +56,6 @@ export class MediaService {
       const uploadMedia = await uploadImage({
         data: file.buffer,
         directory: path,
-        onUploadSuccess(result) {
-          return {
-            url: result.secure_url,
-            status: true,
-          };
-        },
-        onUploadFailure() {
-          return {
-            status: false,
-          };
-        },
       });
 
       // check if file is uploaded successfully

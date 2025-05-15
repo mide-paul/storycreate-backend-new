@@ -40,7 +40,9 @@ async function bootstrap() {
     SwaggerModule.setup("api/v:version/docs", app, document);
 
     app.use(cookieParser());
-    app.useGlobalPipes(new ValidationPipe());
+    app.useGlobalPipes(new ValidationPipe({
+      transform: true,
+    }));
 
     await app.listen(3001);
     console.log('Application is running on: http://localhost:3001');
