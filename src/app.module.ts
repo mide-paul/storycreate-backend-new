@@ -10,8 +10,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { Role, RoleSchema } from './schemas/role.schema';
 import { RoleSeeder } from './scripts/seed-roles';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { Validator, AuthTokenGuard } from './interceptors/validator';
+import { AuthTokenGuard } from './interceptors/validator';
 import { PostModule } from './post/post.module';
 import { NotificationModule } from './notification/notification.module';
 import { NotificationSettingsModule } from './notification-settings/notification-settings.module';
@@ -42,12 +41,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
   providers: [
     AppService,
     RoleSeeder,
-    Validator,
     AuthTokenGuard,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: Validator,
-    },
   ],
 })
-export class AppModule {}
+export class AppModule { }

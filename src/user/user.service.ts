@@ -33,7 +33,7 @@ export class UserService {
     private config: ConfigService,
   ) { }
 
-  async create(createUserDto: CreateUserDto): Promise<UserDocument> {
+  async create(createUserDto: CreateUserDto, id_upload?: Express.Multer.File): Promise<UserDocument> {
     const userExists = await this.userModel.findOne({ email: createUserDto.email }).exec();
     if (userExists) {
       throw new ConflictException("User already exists");
@@ -44,18 +44,47 @@ export class UserService {
       throw new NotFoundException("User registration is not available at the moment");
     }
 
-    const person = new this.personModel({
-      firstName: createUserDto.firstName,
-      lastName: createUserDto.lastName,
-    });
+    // Parse name into firstName and lastName
+    let firstName = createUserDto.name;
+    let lastName = '';
+    const nameParts = createUserDto.name.trim().split(' ');
+    if (nameParts.length > 1) {
+      firstName = nameParts[0];
+      lastName = nameParts.slice(1).join(' ');
+    }
+
+    const personData: any = {
+      firstName,
+      lastName,
+    };
+
+    // Handle optional bio
+    if (createUserDto.bio) {
+      personData.bio = createUserDto.bio;
+    }
+
+    // Handle identityFile upload - save file path or buffer
+    if (id_upload) {
+      // Assuming person schema has profilePicture field to store file path or buffer
+      personData.profilePicture = id_upload.path || id_upload.filename || null;
+    }
+
+    const person = new this.personModel(personData);
     await person.save();
 
-    const user = new this.userModel({
+    const userData: any = {
       email: createUserDto.email,
       password: await bcrypt.hash(createUserDto.password, 10),
       roles: [userRole._id],
       person: person._id,
-    });
+    };
+
+    // Handle optional username - assuming user schema has username field
+    if (createUserDto.username) {
+      userData.username = createUserDto.username;
+    }
+
+    const user = new this.userModel(userData);
     await user.save();
 
     const token = jwt.sign(
