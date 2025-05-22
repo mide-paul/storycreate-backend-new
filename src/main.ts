@@ -18,8 +18,8 @@ async function bootstrap() {
     // Allow requests from both FRONTEND_URL and FRONTEND_LOCAL
     const allowedOrigins = [
       process.env.FRONTEND_LOCAL || 'http://localhost:3000',
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-      process.env.WEBAPP_URL || 'http://localhost:3000',
+      process.env.FRONTEND_URL || 'https://storycreate.app',
+      process.env.WEBAPP_URL || 'https://storycreate.app',
     ].filter(Boolean);
 
     app.enableCors({
