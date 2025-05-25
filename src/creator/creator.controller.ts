@@ -20,7 +20,8 @@ import { CreatorService } from "./creator.service";
 import { CreateCreatorDto } from "./dto/create-creator.dto";
 import { UpdateCreatorDto } from "./dto/update-creator.dto";
 import { AuthCreatorDto } from "./dto/auth-creator.dto";
-import { AuthTokenGuard, Validator } from "src/interceptors/validator";
+import { AuthTokenGuard } from "src/interceptors/validator";
+import { ValidationPipe } from '@nestjs/common';
 import { GoogleAuthCreatorDto } from "./dto/google-auth-creator.dto";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Request, Response } from "express";
@@ -35,7 +36,6 @@ export class CreatorController {
   constructor(private readonly creatorService: CreatorService) { }
 
   @Post("auth/login")
-  @UseInterceptors(Validator)
   async login(@Body() authCreatorDto: AuthCreatorDto, @Res() res: Response) {
     const authdata = await this.creatorService.login(authCreatorDto);
 
@@ -57,9 +57,8 @@ export class CreatorController {
 
   @Post("auth/signup")
   @UseInterceptors(FileInterceptor('id_upload'))
-  @UseInterceptors(Validator)
   async signup(
-    @Body() createCreatorDto: CreateCreatorDto,
+    @Body(new ValidationPipe({ transform: true, whitelist: true })) createCreatorDto: CreateCreatorDto,
     @UploadedFile() idUpload: Express.Multer.File,
     @Res() res: Response
   ) {
@@ -106,7 +105,6 @@ export class CreatorController {
   }
 
   @Post("auth/with/google")
-  @UseInterceptors(Validator)
   async googleAuth(@Body() googleAuthCreatorDto: GoogleAuthCreatorDto) {
     return await this.creatorService.googleAuth(googleAuthCreatorDto);
   }
@@ -155,7 +153,6 @@ export class CreatorController {
   }
 
   @Patch("profile")
-  @UseInterceptors(Validator)
   @UseInterceptors(AuthTokenGuard)
   @Roles(AccessLevel.CREATOR)
   async updateProfile(

@@ -80,9 +80,11 @@ export class CreatorService {
         return created;
       }
 
-      const creatorRole = await this.roleModel.findOne({ name: "creator" }).exec();
+      let creatorRole = await this.roleModel.findOne({ name: "creator" }).exec();
       if (!creatorRole) {
-        throw new NotFoundException("Creator registration is not available at the moment");
+        // Create the creator role if it does not exist
+        creatorRole = new this.roleModel({ name: "creator" });
+        await creatorRole.save();
       }
 
       // Split the name into firstName and lastName
