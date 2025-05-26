@@ -34,7 +34,12 @@ export class PostController {
     )
     file?: Express.Multer.File,
   ) {
-    return this.postService.createPost(createPostDto, file);
+    try {
+      return await this.postService.createPost(createPostDto, file);
+    } catch (error) {
+      console.error('Error in createPost controller:', error);
+      throw error;
+    }
   }
 
   @Get()

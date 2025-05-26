@@ -14,4 +14,9 @@ export class CreatePostDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  @ApiProperty({ description: 'Optional user ID of the post author', required: false })
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
