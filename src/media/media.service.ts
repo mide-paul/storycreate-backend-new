@@ -16,18 +16,23 @@ export class MediaService {
 
   async addMedia(file: Express.Multer.File) {
     try {
+      console.log('Starting media upload for file:', file.originalname);
       const bucketName = this.configService.getOrThrow("GCP_STORAGE_BUCKET");
-      const uploadMedia = await uploadToGCS({
+      const uploadResult = await uploadToGCS({
         bucketName,
         fileName: file.originalname,
         fileBuffer: file.buffer,
         contentType: file.mimetype,
       });
-
+      console.log('Upload result:', uploadResult);
+      if (!uploadResult || !uploadResult.url) {
+        throw new InternalServerErrorException('Failed to upload image');
+      }
       return {
-        url: uploadMedia.url,
+        url: uploadResult.url,
       };
     } catch (err) {
+      console.error('Error in addMedia:', err);
       throw new InternalServerErrorException(err);
     }
   }
@@ -70,7 +75,7 @@ export class MediaService {
         status: true,
       };
     } catch (err) {
-      console.log(err);
+      console.log('Error in uploadMedia:', err);
       return {
         status: false,
       };
