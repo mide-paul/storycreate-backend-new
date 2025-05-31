@@ -3,13 +3,36 @@ import {
   IsEmail,
   IsNotEmpty,
   IsString,
-  IsStrongPassword,
   MinLength,
-  Matches,
   IsOptional,
   ValidateNested,
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
 } from "class-validator";
 import { Type } from "class-transformer";
+
+export function Match(property: string, validationOptions?: ValidationOptions) {
+  return function (object: Object, propertyName: string) {
+    registerDecorator({
+      name: "match",
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      constraints: [property],
+      validator: {
+        validate(value: any, args: ValidationArguments) {
+          const [relatedPropertyName] = args.constraints;
+          const relatedValue = (args.object as any)[relatedPropertyName];
+          return value === relatedValue;
+        },
+        defaultMessage(args: ValidationArguments) {
+          return `${args.property} must match ${args.constraints[0]}`;
+        },
+      },
+    });
+  };
+}
 
 export class ProfileDto {
   @ApiProperty({ description: "Bio of the creator", example: "I am a content creator" })
@@ -86,7 +109,6 @@ export class CreateCreatorDto {
     example: "Password@123",
   })
   @IsNotEmpty()
-  @IsStrongPassword()
   @IsString()
   @MinLength(6)
   password: string;
@@ -97,9 +119,7 @@ export class CreateCreatorDto {
   })
   @IsNotEmpty()
   @IsString()
-  @Matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{6,}$/, {
-    message: 'Passwords do not match'
-  })
+  @Match("password", { message: "Passwords do not match" })
   confirmPassword: string;
 
   @ApiProperty({
