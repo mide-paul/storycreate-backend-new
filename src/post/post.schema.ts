@@ -1,7 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, SchemaTypes, Types } from 'mongoose';
 
 export type PostDocument = Post & Document;
+
+export type CommentDocument = Comment & Document;
 
 @Schema({ timestamps: true })
 export class Comment {
@@ -14,8 +16,8 @@ export class Comment {
   @Prop({ default: 0 })
   likes: number;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Comment' }], default: [] })
-  replies: Types.ObjectId[];
+  @Prop({ type: [{ type: SchemaTypes.Mixed }], default: [] })
+  replies: any[];
 
   @Prop({ default: Date.now })
   createdAt: Date;

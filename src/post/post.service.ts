@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Post, PostDocument } from './post.schema';
+import { Post, PostDocument, Comment, CommentDocument } from './post.schema';
 import { CreatePostDto } from './dto/create-post.dto';
 import { LikePostDto } from './dto/like-post.dto';
 import { CommentPostDto } from './dto/comment-post.dto';
@@ -12,6 +12,7 @@ import { UserService } from '../user/user.service';
 export class PostService {
   constructor(
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
+    @InjectModel(Comment.name) private commentModel: Model<CommentDocument>,
     private readonly mediaService: MediaService,
     private readonly userService: UserService,
   ) {}
@@ -224,11 +225,14 @@ export class PostService {
     if (!post) {
       throw new NotFoundException('Post not found');
     }
+    // Sanitize replies to ensure it is an array of ObjectIds (empty array here)
+    const sanitizedReplies: Types.ObjectId[] = [];
+
     post.comments.push({
       userId: new Types.ObjectId(commentPostDto.userId),
       text: commentPostDto.text,
       likes: 0,
-      replies: [],
+      replies: sanitizedReplies,
       createdAt: new Date(),
     });
     return post.save();
@@ -264,13 +268,7 @@ export class PostService {
 
   async replyToComment(postId: string, commentId: string, commentPostDto: CommentPostDto): Promise<Post> {
     // Create a new Comment document for the reply
-    let CommentModel;
-    try {
-      CommentModel = this.postModel.db.model('PostComment');
-    } catch (error) {
-      CommentModel = this.postModel.db.model('PostComment', this.postModel.schema.path('comments').schema);
-    }
-    const newReply = new CommentModel({
+    const newReply = new this.commentModel({
       userId: new Types.ObjectId(commentPostDto.userId),
       text: commentPostDto.text,
       likes: 0,
@@ -281,15 +279,22 @@ export class PostService {
     await newReply.save();
 
     // Push the new reply's ObjectId into the replies array of the parent comment
-    const updateResult = await this.postModel.findOneAndUpdate(
-      { _id: postId, 'comments._id': commentId },
-      {
-        $push: {
-          'comments.$.replies': newReply._id,
-        },
-      },
-      { new: true }
-    )
+    // Sanitize replies to ensure it is an array of ObjectIds
+    const post = await this.postModel.findById(postId);
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+    const comment = this.findCommentById(post.comments, commentId);
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+    if (!Array.isArray(comment.replies)) {
+      comment.replies = [];
+    }
+    comment.replies.push(newReply._id);
+    await post.save();
+
+    const updateResult = await this.postModel.findById(postId)
       .populate({
         path: 'comments.userId',
         select: 'person',
