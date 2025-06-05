@@ -14,8 +14,8 @@ export class Comment {
   @Prop({ default: 0 })
   likes: number;
 
-  @Prop({ type: [{ type: SchemaFactory.createForClass(Comment) }], default: [] })
-  replies: Comment[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Comment' }], default: [] })
+  replies: Types.ObjectId[];
 
   @Prop({ default: Date.now })
   createdAt: Date;

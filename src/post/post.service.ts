@@ -58,11 +58,24 @@ export class PostService {
         populate: { path: 'person', select: 'firstName lastName' },
       })
       .populate({
-        path: 'comments.replies.userId',
-        select: 'person',
-        populate: { path: 'person', select: 'firstName lastName' },
-        strictPopulate: false,
+        path: 'comments.replies',
+        populate: {
+          path: 'userId',
+          select: 'person',
+          populate: { path: 'person', select: 'firstName lastName' },
+        },
+        select: 'text createdAt likes replies userId',
       })
+      .populate({
+        path: 'comments.replies.replies',
+        populate: {
+          path: 'userId',
+          select: 'person',
+          populate: { path: 'person', select: 'firstName lastName' },
+        },
+        select: 'text createdAt likes replies userId',
+      })
+      .select('author text imageUrl likes comments createdAt updatedAt')
       .exec();
 
     // Transform comments and replies to include author field
@@ -105,20 +118,6 @@ export class PostService {
               replyAuthor = null;
             }
           }
-          // if (!replyAuthor) {
-          //   console.warn(`User not found for reply userId ${reply.userId}, setting author as 'Unknown User'`);
-          //   replyAuthor = 'Unknown User';
-          // }
-          // if (!reply.userId) {
-          //   console.warn(`Reply missing userId:`, reply);
-          // }
-          // if (!reply.text) {
-          //   console.warn(`Reply missing text:`, reply);
-          // }
-          // if (!reply.createdAt) {
-          //   console.warn(`Reply missing createdAt:`, reply);
-          // }
-          // console.log('Processing reply:', reply);
           return {
             author: replyAuthor,
             text: reply.text || '[No text provided]',
@@ -138,11 +137,24 @@ export class PostService {
         populate: { path: 'person', select: 'firstName lastName' },
       })
       .populate({
-        path: 'comments.replies.userId',
-        select: 'person',
-        populate: { path: 'person', select: 'firstName lastName' },
-        strictPopulate: false,
+        path: 'comments.replies',
+        populate: {
+          path: 'userId',
+          select: 'person',
+          populate: { path: 'person', select: 'firstName lastName' },
+        },
+        select: 'text createdAt likes replies userId',
       })
+      .populate({
+        path: 'comments.replies.replies',
+        populate: {
+          path: 'userId',
+          select: 'person',
+          populate: { path: 'person', select: 'firstName lastName' },
+        },
+        select: 'text createdAt likes replies userId',
+      })
+      .select('author text imageUrl likes comments createdAt updatedAt')
       .exec();
 
     // Transform comments and replies to include author field
@@ -163,11 +175,24 @@ export class PostService {
         populate: { path: 'person', select: 'firstName lastName' },
       })
       .populate({
-        path: 'comments.replies.userId',
-        select: 'person',
-        populate: { path: 'person', select: 'firstName lastName' },
-        strictPopulate: false,
-      });
+        path: 'comments.replies',
+        populate: {
+          path: 'userId',
+          select: 'person',
+          populate: { path: 'person', select: 'firstName lastName' },
+        },
+        select: 'text createdAt likes replies userId',
+      })
+      .populate({
+        path: 'comments.replies.replies',
+        populate: {
+          path: 'userId',
+          select: 'person',
+          populate: { path: 'person', select: 'firstName lastName' },
+        },
+        select: 'text createdAt likes replies userId',
+      })
+      .select('author text imageUrl likes comments createdAt updatedAt');
     if (!post) {
       throw new NotFoundException('Post not found');
     }
@@ -238,43 +263,53 @@ export class PostService {
   }
 
   async replyToComment(postId: string, commentId: string, commentPostDto: CommentPostDto): Promise<Post> {
-    const post = await this.postModel.findById(postId);
-    if (!post) {
-      throw new NotFoundException('Post not found');
+    // Create a new Comment document for the reply
+    let CommentModel;
+    try {
+      CommentModel = this.postModel.db.model('PostComment');
+    } catch (error) {
+      CommentModel = this.postModel.db.model('PostComment', this.postModel.schema.path('comments').schema);
     }
-    // Find the comment by id recursively
-    const comment = this.findCommentById(post.comments, commentId);
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
-    comment.replies.push({
+    const newReply = new CommentModel({
       userId: new Types.ObjectId(commentPostDto.userId),
       text: commentPostDto.text,
       likes: 0,
       replies: [],
       createdAt: new Date(),
     });
-    await post.save();
 
-    // Reload the post with populated comments and replies to get updated author info
-    const updatedPost = await this.postModel.findById(postId)
+    await newReply.save();
+
+    // Push the new reply's ObjectId into the replies array of the parent comment
+    const updateResult = await this.postModel.findOneAndUpdate(
+      { _id: postId, 'comments._id': commentId },
+      {
+        $push: {
+          'comments.$.replies': newReply._id,
+        },
+      },
+      { new: true }
+    )
       .populate({
         path: 'comments.userId',
         select: 'person',
         populate: { path: 'person', select: 'firstName lastName' },
       })
       .populate({
-        path: 'comments.replies.userId',
-        select: 'person',
-        populate: { path: 'person', select: 'firstName lastName' },
-        strictPopulate: false,
+        path: 'comments.replies',
+        populate: {
+          path: 'userId',
+          select: 'person',
+          populate: { path: 'person', select: 'firstName lastName' },
+        },
+        select: 'text createdAt likes replies userId',
       });
 
-    if (!updatedPost) {
-      throw new NotFoundException('Post not found after update');
+    if (!updateResult) {
+      throw new NotFoundException('Post or comment not found');
     }
 
-    const postObj = updatedPost.toObject();
+    const postObj = updateResult.toObject();
     postObj.comments = await this.transformComments(postObj.comments);
     return postObj;
   }
