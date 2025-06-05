@@ -185,6 +185,15 @@ export class PostService {
     return post.save();
   }
 
+  async unlikePost(postId: string, likePostDto: LikePostDto): Promise<Post> {
+    const post = await this.postModel.findById(postId);
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+    post.likes = Math.max(0, post.likes - 1);
+    return post.save();
+  }
+
   async commentPost(postId: string, commentPostDto: CommentPostDto): Promise<Post> {
     const post = await this.postModel.findById(postId);
     if (!post) {
@@ -211,6 +220,20 @@ export class PostService {
       throw new NotFoundException('Comment not found');
     }
     comment.likes += 1;
+    return post.save();
+  }
+
+  async unlikeComment(postId: string, commentId: string, likePostDto: LikePostDto): Promise<Post> {
+    const post = await this.postModel.findById(postId);
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+    // Find the comment by id recursively
+    const comment = this.findCommentById(post.comments, commentId);
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+    comment.likes = Math.max(0, comment.likes - 1);
     return post.save();
   }
 

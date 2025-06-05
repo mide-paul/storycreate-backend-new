@@ -63,6 +63,14 @@ export class PostController {
     return this.postService.likePost(id, likePostDto);
   }
 
+  @Post(':id/unlike')
+  async unlikePost(@Param('id') id: string, @Body() likePostDto: LikePostDto) {
+    if (!id) {
+      throw new BadRequestException('Post ID parameter is missing in the request URL. Please ensure the URL includes the post ID as /posts/{postId}/unlike');
+    }
+    return this.postService.unlikePost(id, likePostDto);
+  }
+
   @Post(':id/comment')
   async commentPost(@Param('id') id: string, @Body() commentPostDto: CommentPostDto) {
     return this.postService.commentPost(id, commentPostDto);
@@ -75,6 +83,15 @@ export class PostController {
     @Body() likePostDto: LikePostDto,
   ) {
     return this.postService.likeComment(postId, commentId, likePostDto);
+  }
+
+  @Post(':postId/comments/:commentId/unlike')
+  async unlikeComment(
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string,
+    @Body() likePostDto: LikePostDto,
+  ) {
+    return this.postService.unlikeComment(postId, commentId, likePostDto);
   }
 
   @Post(':postId/comments/:commentId/reply')
