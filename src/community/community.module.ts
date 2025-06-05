@@ -7,6 +7,7 @@ import { PostService } from '../post/post.service';
 import { Post, PostSchema } from '../post/post.schema';
 import { CommunityPostController } from '../community-post/community-post.controller';
 import { MediaModule } from '../media/media.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { MediaModule } from '../media/media.module';
       { name: Post.name, schema: PostSchema },
     ]),
     MediaModule,
+    UserModule,
   ],
   controllers: [CommunityController, CommunityPostController],
   providers: [CommunityService, PostService],

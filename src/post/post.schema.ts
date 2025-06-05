@@ -11,11 +11,18 @@ export class Comment {
   @Prop({ required: true })
   text: string;
 
+  @Prop({ default: 0 })
+  likes: number;
+
+  @Prop({ type: [{ type: SchemaFactory.createForClass(Comment) }], default: [] })
+  replies: Comment[];
+
   @Prop({ default: Date.now })
   createdAt: Date;
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);
+
 
 @Schema({ timestamps: true })
 export class Post {
