@@ -11,6 +11,9 @@ export class User {
   @Prop({ required: true, unique: true })
   email: string;
 
+  @Prop({ required: true, unique: true })
+  username: string;
+
   @Prop()
   password?: string;
 
@@ -31,6 +34,9 @@ export class User {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'BankAccount' }] })
   bankAccounts: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Story' }], default: [] })
+  savedBooks: Types.ObjectId[];
 }
 
-export const UserSchema = SchemaFactory.createForClass(User); 
+export const UserSchema = SchemaFactory.createForClass(User);

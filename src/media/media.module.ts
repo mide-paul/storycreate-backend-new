@@ -8,6 +8,7 @@ import { Person, PersonSchema } from "../schemas/person.schema";
 import { Role, RoleSchema } from "../schemas/role.schema";
 import { Creator, CreatorSchema } from '../schemas/creator.schema';
 import { UserService } from "../user/user.service";
+import { Post, PostSchema } from "../post/post.schema";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { UserService } from "../user/user.service";
       { name: Person.name, schema: PersonSchema },
       { name: Role.name, schema: RoleSchema },
       { name: Creator.name, schema: CreatorSchema },
+      { name: Post.name, schema: PostSchema },
     ]),
   ],
   controllers: [MediaController],

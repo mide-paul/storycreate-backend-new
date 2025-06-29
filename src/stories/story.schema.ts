@@ -49,6 +49,12 @@ export class Story {
 
   @Prop()
   dashboardCategory?: string;
+
+  @Prop({ default: 0 })
+  views: number;
+
+  @Prop({ default: 0 })
+  votes: number;
 }
 
 export const StorySchema = SchemaFactory.createForClass(Story);

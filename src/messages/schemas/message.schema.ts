@@ -11,6 +11,9 @@ export class Message extends Document {
 
   @Prop({ required: true })
   content: string;
+
+  @Prop({ type: [String], default: [] })
+  files: string[];
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

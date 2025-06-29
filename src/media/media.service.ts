@@ -3,7 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Media } from "../schemas/media.schema";
 import { ConfigService } from "@nestjs/config";
-import { uploadImage, uploadToGCS } from "src/utils/uploader";
+import { uploadImage, uploadToGCS } from "../utils/uploader";
 import md5 from "md5";
 
 @Injectable()

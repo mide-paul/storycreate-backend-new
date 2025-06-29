@@ -10,6 +10,7 @@ import {
   FileTypeValidator,
   MaxFileSizeValidator,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PostService } from './post.service';
@@ -24,17 +25,22 @@ export class PostController {
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   async createPost(
+    @Req() req: any,
     @Body() createPostDto: CreatePostDto,
     @UploadedFile(
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB max
         ],
+        fileIsRequired: false,
       }),
     )
     file?: Express.Multer.File,
   ) {
     try {
+      if (req.user && req.user.userId) {
+        createPostDto.userId = req.user.userId;
+      }
       return await this.postService.createPost(createPostDto, file);
     } catch (error) {
       console.error('Error in createPost controller:', error);

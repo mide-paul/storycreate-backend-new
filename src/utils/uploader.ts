@@ -4,7 +4,8 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { BucketProps } from "src/core/struct";
-import cloudinary, { UploadApiResponse } from "cloudinary";
+import * as cloudinary from "cloudinary";
+import { v2 as cloudinaryV2, UploadApiResponse } from "cloudinary";
 import * as streamifier from "streamifier";
 import { Storage } from "@google-cloud/storage";
 
@@ -63,7 +64,7 @@ async function uploadImage({
 }) {
   // const result: UploadApiResponse | null = null;
 
-  cloudinary.v2.config({
+  cloudinaryV2.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
@@ -71,7 +72,7 @@ async function uploadImage({
 
   const uploadedMedia: UploadApiResponse | null = await new Promise(
     (resolve, reject) => {
-      const uploadStream = cloudinary.v2.uploader.upload_stream(
+      const uploadStream = cloudinaryV2.uploader.upload_stream(
         { directory },
         (error, result) => {
           if (error) {

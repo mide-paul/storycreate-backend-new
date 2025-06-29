@@ -6,6 +6,7 @@ import { User, UserSchema } from '../schemas/user.schema';
 import { Role, RoleSchema } from '../schemas/role.schema';
 import { Person, PersonSchema } from '../schemas/person.schema';
 import { Creator, CreatorSchema } from '../schemas/creator.schema';
+import { Post, PostSchema } from '../post/post.schema';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { Creator, CreatorSchema } from '../schemas/creator.schema';
       { name: Role.name, schema: RoleSchema },
       { name: Person.name, schema: PersonSchema },
       { name: Creator.name, schema: CreatorSchema },
+      { name: Post.name, schema: PostSchema },
     ]),
   ],
   controllers: [UserController],

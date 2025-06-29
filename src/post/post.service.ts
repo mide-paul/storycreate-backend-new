@@ -37,6 +37,10 @@ export class PostService {
         comments: [],
       };
 
+      if (createPostDto.userId) {
+        postData.userId = new Types.ObjectId(createPostDto.userId);
+      }
+
       if (communityId) {
         postData.communityId = new Types.ObjectId(communityId);
       }
@@ -76,7 +80,7 @@ export class PostService {
         },
         select: 'text createdAt likes replies userId',
       })
-      .select('author text imageUrl likes comments createdAt updatedAt')
+      .select('author text imageUrl likes comments createdAt updatedAt userId')
       .exec();
 
     // Transform comments and replies to include author field

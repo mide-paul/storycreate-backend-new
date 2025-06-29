@@ -20,14 +20,14 @@ import { CreatorService } from "./creator.service";
 import { CreateCreatorDto } from "./dto/create-creator.dto";
 import { UpdateCreatorDto } from "./dto/update-creator.dto";
 import { AuthCreatorDto } from "./dto/auth-creator.dto";
-import { AuthTokenGuard } from "src/interceptors/validator";
+import { AuthTokenGuard } from "../interceptors/validator";
 import { ValidationPipe } from '@nestjs/common';
 import { GoogleAuthCreatorDto } from "./dto/google-auth-creator.dto";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Request, Response } from "express";
 import { UpdatePasswordDto } from "./dto/update-password.dto";
-import { Roles } from "src/decorators/roles.decorator";
-import { AccessLevel } from "src/core/enums";
+import { Roles } from "../decorators/roles.decorator";
+import { AccessLevel } from "../core/enums";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { Schema, Document } from 'mongoose';
 

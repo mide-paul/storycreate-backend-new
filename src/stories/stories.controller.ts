@@ -42,6 +42,41 @@ export class StoriesController {
     return this.storiesService.createStory(createStoryDto, file);
   }
 
+  @Get('sponsored-posts')
+  async getSponsoredPosts() {
+    return this.storiesService.getStoriesByCategory('sponsored-posts');
+  }
+
+  @Get('readers-favourite')
+  async getReadersFavourite() {
+    return this.storiesService.getStoriesByCategory('readers-favourite');
+  }
+
+  @Get('highly-rated')
+  async getHighlyRated() {
+    return this.storiesService.getStoriesByCategory('highly-rated');
+  }
+
+  @Get('exciting-genre')
+  async getExcitingGenre() {
+    return this.storiesService.getStoriesByCategory('exciting-genre');
+  }
+
+  @Get('audio-books')
+  async getAudioBooks() {
+    return this.storiesService.getStoriesByCategory('audio-books');
+  }
+
+  @Get('anime-stories')
+  async getAnimeStories() {
+    return this.storiesService.getStoriesByCategory('anime-stories');
+  }
+
+  @Get('graphic-novels')
+  async getGraphicNovels() {
+    return this.storiesService.getStoriesByCategory('graphic-novels');
+  }
+
   @Get(':bookId')
   async getBookById(@Param('bookId') bookId: string) {
     return this.storiesService.getStoryById(bookId);

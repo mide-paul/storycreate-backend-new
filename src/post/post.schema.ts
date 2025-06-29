@@ -45,6 +45,9 @@ export class Post {
 
   @Prop({ type: Types.ObjectId, ref: 'Community', required: false })
   communityId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  userId?: Types.ObjectId;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);

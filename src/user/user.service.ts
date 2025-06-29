@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as jwt from "jsonwebtoken";
 import * as bcrypt from 'bcryptjs';
 import {
@@ -11,17 +10,18 @@ import {
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { ConfigService } from "@nestjs/config";
-import { UserTokenStruct } from "src/core/struct";
-import { AccessLevel } from "src/core/enums";
+import { UserTokenStruct } from "../core/struct";
+import { AccessLevel } from "../core/enums";
 import { AuthUserDto } from "./dto/auth-user.dto";
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../schemas/user.schema';
+import { SampleStoriesService } from '../scripts/sample-stories.service';
 import { Role, RoleDocument } from '../schemas/role.schema';
 import { Person, PersonDocument } from '../schemas/person.schema';
 import { Creator, CreatorDocument } from '../schemas/creator.schema';
+import { Post, PostDocument } from '../post/post.schema';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
-// import { AuthTokenGuard } from "src/interceptors/validator";
 
 @Injectable()
 export class UserService {
@@ -30,6 +30,7 @@ export class UserService {
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(Person.name) private personModel: Model<PersonDocument>,
     @InjectModel(Creator.name) private creatorModel: Model<CreatorDocument>,
+    @InjectModel(Post.name) private postModel: Model<PostDocument>,
     private config: ConfigService,
   ) { }
 
@@ -102,6 +103,15 @@ export class UserService {
     );
 
     return user;
+  }
+
+  // New method to get simplified user list for search
+  async getSimpleUsers(): Promise<{ id: string; name: string }[]> {
+    const users = await this.userModel.find().populate('person').exec();
+    return users.map(user => ({
+      id: (user._id as any).toString(),
+      name: user.person.firstName + (user.person.lastName ? ' ' + user.person.lastName : ''),
+    }));
   }
 
   async findAll(): Promise<UserDocument[]> {
@@ -316,6 +326,9 @@ export class UserService {
       console.log('Fetched creator document:', creatorDoc);
     }
 
+    // Fetch posts authored by the user
+    const posts = await this.postModel.find({ userId: userId }).populate('userId', '_id username').exec();
+
     return {
       message: "User profile retrieved successfully",
       data: {
@@ -328,6 +341,10 @@ export class UserService {
         },
         roles: user.roles.map((r) => ({ name: r.name })),
         creator: creatorDoc,
+        posts: posts.map(post => ({
+          ...post.toObject(),
+          authorId: post.userId ? post.userId._id : null,
+        })),
       },
     };
   }
@@ -429,5 +446,51 @@ export class UserService {
     }
 
     return this.getProfileByUserId(userId);
+  }
+
+  async addBookToSaved(userId: string, bookId: string) {
+    // Import SampleStoriesService dynamically to avoid import issues
+    const { SampleStoriesService } = await import('../scripts/sample-stories.service');
+    // Check if bookId is a valid ObjectId (database story) or sample story id (string)
+    let isSampleStory = false;
+    if (!Types.ObjectId.isValid(bookId)) {
+      // Not a valid ObjectId, check if it exists in sample stories
+      const sampleStory = SampleStoriesService.getStoryById(bookId);
+      if (!sampleStory) {
+        throw new NotFoundException('Book not found');
+      }
+      isSampleStory = true;
+    }
+    if (isSampleStory) {
+      // For sample stories, store the string id in savedBooks array
+      const user = await this.userModel.findById(userId).exec();
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      const alreadySaved = user.savedBooks.some(id => id.toString() === bookId);
+      if (alreadySaved) {
+        return { updatedUser: user, alreadySaved: true };
+      }
+      // Cast bookId to any to avoid ObjectId type error
+      user.savedBooks.push(bookId as any);
+      await user.save();
+      await user.populate('savedBooks');
+      user.password = undefined;
+      return { updatedUser: user, alreadySaved: false };
+    } else {
+      // For database stories, use existing logic
+      const bookObjectId = new Types.ObjectId(bookId);
+      const updatedUser = await this.userModel.findByIdAndUpdate(
+        userId,
+        { $addToSet: { savedBooks: bookObjectId } },
+        { new: true, runValidators: false }
+      ).populate('savedBooks')
+      .select('-password')
+      .exec();
+      if (!updatedUser) {
+        throw new NotFoundException('User not found');
+      }
+      return { updatedUser, alreadySaved: false };
+    }
   }
 }

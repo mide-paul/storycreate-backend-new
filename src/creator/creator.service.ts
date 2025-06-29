@@ -16,8 +16,8 @@ import { ConfigService } from "@nestjs/config";
 import { GoogleAuthCreatorDto } from "./dto/google-auth-creator.dto";
 import { AccessLevel, AccessMethod } from "../core/enums";
 import { OAuth2Client } from "google-auth-library";
-import { UserService } from "src/user/user.service";
-import { MediaService } from "src/media/media.service";
+import { UserService } from "../user/user.service";
+import { MediaService } from "../media/media.service";
 import { UpdatePasswordDto } from "./dto/update-password.dto";
 import { JwtService } from "@nestjs/jwt";
 import { InjectModel } from '@nestjs/mongoose';
@@ -47,9 +47,14 @@ export class CreatorService {
   ) {}
 
   async create(createCreatorDto: CreateCreatorDto): Promise<CreatorDocument> {
-    console.log(`[CreatorService.create] signup attempt for email: ${createCreatorDto.email}`);
+    console.log(`[CreatorService.create] signup attempt for identifier: ${createCreatorDto.email} / ${createCreatorDto.username}`);
     try {
-      const userExists = await this.userModel.findOne({ email: createCreatorDto.email }).exec();
+      const userExists = await this.userModel.findOne({
+        $or: [
+          { email: createCreatorDto.email },
+          { username: createCreatorDto.username }
+        ]
+      }).exec();
       console.log('[CreatorService.create] userExists:', userExists);
       if (userExists) {
         console.log(
@@ -57,7 +62,7 @@ export class CreatorService {
         );
         // block if already signed up via email/password
         if (userExists.accessMethod === AccessMethod.EMAIL_PASSWORD) {
-          throw new ConflictException("Creator already has an account with this email");
+          throw new ConflictException("Creator already has an account with this email or username");
         }
         // existing Google-only user: link to email/password
         userExists.password = await bcrypt.hash(createCreatorDto.password, 10);
@@ -100,6 +105,7 @@ export class CreatorService {
 
       const user = new this.userModel({
         email: createCreatorDto.email,
+        username: createCreatorDto.username,
         password: await bcrypt.hash(createCreatorDto.password, 10),
         roles: [creatorRole._id],
         person: person._id,
@@ -167,7 +173,13 @@ export class CreatorService {
   async login(authCreatorDto: AuthCreatorDto) {
     try {
       const userExists = await this.userModel
-        .findOne({ email: authCreatorDto.email, accessMethod: AccessMethod.EMAIL_PASSWORD })
+        .findOne({
+          $or: [
+            { email: authCreatorDto.identifier },
+            { username: authCreatorDto.identifier }
+          ],
+          accessMethod: AccessMethod.EMAIL_PASSWORD
+        })
         .populate('roles')
         .populate('person')
         .populate('creator')
@@ -232,9 +244,10 @@ export class CreatorService {
             data: {
               firstName: creator.user.person.firstName,
               lastName: creator.user.person.lastName,
-              email: creator.user.email,
-              token,
-              refreshToken,
+          email: creator.user.email,
+          username: (creator.user as import('../schemas/user.schema').UserDocument & { username?: string }).username ?? undefined,
+          token,
+          refreshToken,
             },
           };
         }
@@ -253,6 +266,7 @@ export class CreatorService {
     data: {
       id: number;
       email: string;
+      username?: string;
       person: {
         firstName: string;
         lastName: string;
@@ -291,6 +305,7 @@ export class CreatorService {
         data: {
           id: creator.user.id,
           email: creator.user.email,
+          username: (creator.user as import('../schemas/user.schema').UserDocument & { username?: string }).username ?? undefined,
           person: {
             firstName: creator.user.person.firstName,
             lastName: creator.user.person.lastName,
