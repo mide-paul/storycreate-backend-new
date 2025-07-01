@@ -57,7 +57,7 @@ async function bootstrap() {
     const storySeeder = app.get(StorySeeder);
     await storySeeder.seed();
 
-    const port = process.env.PORT || 3001;
+    const port = process.env.PORT || 8080;
     await app.listen(port);
     console.log(`Application is running on: http://localhost:${port}`);
   } catch (error) {
