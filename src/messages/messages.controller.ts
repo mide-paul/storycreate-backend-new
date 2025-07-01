@@ -3,7 +3,7 @@ import { MessagesService } from './messages.service';
 import { Request } from 'express';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { uploadImage } from 'src/utils/uploader';
+import { uploadImage } from '../utils/uploader';
 
 @Controller('messages')
 export class MessagesController {

@@ -55,10 +55,16 @@ export class UserController {
   }
 
   @Get("profile")
+  @UseInterceptors(AuthTokenGuard)
   async getProfile(
     @Req() req: Request & { user: { id: string } }
   ) {
-    return await this.userService.getProfileByUserId(req.user.id);
+    try {
+      return await this.userService.getProfileByUserId(req.user.id);
+    } catch (error) {
+      console.error('Error fetching user profile:', error.message, error.stack);
+      throw error;
+    }
   }
 
   @Patch("profile")

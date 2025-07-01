@@ -4,6 +4,9 @@ import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import * as cookieParser from "cookie-parser";
 import { json, urlencoded } from "express";
+import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+import { LoggingMiddleware } from "./common/middleware/logging.middleware";
+import { StorySeeder } from './scripts/seed-stories';
 
 async function bootstrap() {
   try {
@@ -45,6 +48,14 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
     }));
+
+    app.useGlobalFilters(new AllExceptionsFilter());
+
+    app.use(new LoggingMiddleware().use);
+
+    // Run story seeder
+    const storySeeder = app.get(StorySeeder);
+    await storySeeder.seed();
 
     const port = process.env.PORT || 3001;
     await app.listen(port);

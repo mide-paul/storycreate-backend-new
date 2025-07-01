@@ -106,11 +106,13 @@ export class UserService {
   }
 
   // New method to get simplified user list for search
-  async getSimpleUsers(): Promise<{ id: string; name: string }[]> {
+  async getSimpleUsers(): Promise<{ id: string; name: string; profession?: string; location?: string }[]> {
     const users = await this.userModel.find().populate('person').exec();
     return users.map(user => ({
       id: (user._id as any).toString(),
       name: user.person.firstName + (user.person.lastName ? ' ' + user.person.lastName : ''),
+      profession: user.person?.profession,
+      location: user.person?.location,
     }));
   }
 
@@ -306,47 +308,66 @@ export class UserService {
   }
 
   async getProfileByUserId(userId: string) {
-    console.log('getProfileByUserId called with userId:', userId);
-    const user = await this.userModel
-      .findById(userId)
-      .populate<{ person: PersonDocument }>("person")
-      .populate<{ roles: RoleDocument[] }>("roles")
-      .exec();
+    try {
+      console.log('getProfileByUserId called with userId:', userId);
+      const user = await this.userModel
+        .findById(userId)
+        .populate<{ person: PersonDocument }>("person")
+        .populate<{ roles: RoleDocument[] }>("roles")
+        .exec();
 
-    if (!user) throw new NotFoundException("User not found");
+      if (!user) throw new NotFoundException("User not found");
 
-    console.log('getProfileByUserId called with userId:', userId);
-    console.log('User creator field:', user.creator);
+      console.log('User creator field:', user.creator);
 
-    // Fetch creator document separately by user.creator ObjectId
-    let creatorDoc: CreatorDocument | null = null;
-    if (user.creator) {
-      console.log('Looking for creator document with id:', user.creator);
-      creatorDoc = await this.creatorModel.findById(user.creator).exec();
-      console.log('Fetched creator document:', creatorDoc);
-    }
+      // Fetch creator document separately by user.creator ObjectId
+      let creatorDoc: CreatorDocument | null = null;
+      if (user.creator) {
+        console.log('Looking for creator document with id:', user.creator);
+        try {
+          creatorDoc = await this.creatorModel.findById(user.creator).exec();
+          if (!creatorDoc) {
+            console.warn('Creator document not found for id:', user.creator);
+            creatorDoc = null;
+          }
+          console.log('Fetched creator document:', creatorDoc);
+        } catch (creatorError) {
+          console.error('Error fetching creator document:', creatorError);
+          creatorDoc = null;
+        }
+      }
 
-    // Fetch posts authored by the user
-    const posts = await this.postModel.find({ userId: userId }).populate('userId', '_id username').exec();
+      // Fetch posts authored by the user
+      let posts: PostDocument[] = [];
+      try {
+        posts = await this.postModel.find({ userId: userId }).populate('userId', '_id username').exec();
+      } catch (postError) {
+        console.error('Error fetching posts for user:', userId, postError);
+        posts = [];
+      }
 
-    return {
-      message: "User profile retrieved successfully",
-      data: {
-        id: user.id,
-        email: user.email,
-        person: {
-          firstName: user.person.firstName,
-          lastName: user.person.lastName,
-          profilePicture: user.person.profilePicture,
+      return {
+        message: "User profile retrieved successfully",
+        data: {
+          id: user.id,
+          email: user.email,
+          person: {
+            firstName: user.person.firstName,
+            lastName: user.person.lastName,
+            profilePicture: user.person.profilePicture,
+          },
+          roles: user.roles.map((r) => ({ name: r.name })),
+          creator: creatorDoc,
+          posts: posts.map(post => ({
+            ...post.toObject(),
+            authorId: post.userId ? post.userId._id : null,
+          })),
         },
-        roles: user.roles.map((r) => ({ name: r.name })),
-        creator: creatorDoc,
-        posts: posts.map(post => ({
-          ...post.toObject(),
-          authorId: post.userId ? post.userId._id : null,
-        })),
-      },
-    };
+      };
+    } catch (error) {
+      console.error('Error in getProfileByUserId:', error);
+      throw error;
+    }
   }
 
   async updateProfileByUserId(

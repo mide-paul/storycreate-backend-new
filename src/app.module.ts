@@ -10,6 +10,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { Role, RoleSchema } from './schemas/role.schema';
 import { RoleSeeder } from './scripts/seed-roles';
+import { StorySeeder } from './scripts/seed-stories';
+import { Story, StorySchema } from './stories/story.schema';
 import { AuthTokenGuard } from './interceptors/validator';
 import { PostModule } from './post/post.module';
 import { NotificationModule } from './notification/notification.module';
@@ -17,6 +19,7 @@ import { NotificationSettingsModule } from './notification-settings/notification
 import { MessagesModule } from './messages/messages.module';
 import { LibraryModule } from './library/library.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { JobModule } from './job/job.module';
 
 @Module({
   imports: [
@@ -25,6 +28,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     }),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/storycreate'),
     MongooseModule.forFeature([{ name: Role.name, schema: RoleSchema }]),
+    MongooseModule.forFeature([{ name: Story.name, schema: StorySchema }]),
     CreatorModule,
     UserModule,
     MediaModule,
@@ -36,11 +40,13 @@ import { DashboardModule } from './dashboard/dashboard.module';
     LibraryModule,
     DashboardModule,
     CommunityModule,
+    JobModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     RoleSeeder,
+    StorySeeder,
     AuthTokenGuard,
   ],
 })

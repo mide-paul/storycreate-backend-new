@@ -12,14 +12,18 @@ export class StorySeeder {
   ) {}
 
   async seed() {
-    const filePath = path.resolve(__dirname, 'sample-stories.json');
+    // Adjust path to work in both dev and production
+    const basePath = process.env.NODE_ENV === 'production' ? path.resolve(process.cwd(), 'dist', 'scripts') : path.resolve(process.cwd(), 'src', 'scripts');
+    const filePath = path.join(basePath, 'sample-stories.json');
     const data = fs.readFileSync(filePath, 'utf-8');
     const stories = JSON.parse(data);
 
     for (const story of stories) {
       const exists = await this.storyModel.findOne({ title: story.title }).exec();
       if (!exists) {
-        await this.storyModel.create(story);
+        // Remove _id to avoid duplicate key error
+        const { _id, ...storyData } = story;
+        await this.storyModel.create(storyData);
       }
     }
   }

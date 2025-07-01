@@ -4,9 +4,9 @@ import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { Conversation, ConversationSchema } from './schemas/conversation.schema';
-import { AuthMiddleware } from 'src/middlewares/auth.middleware';
+import { AuthMiddleware } from '../middlewares/auth.middleware';
 import { ConfigModule } from '@nestjs/config';
-import { UserModule } from 'src/user/user.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [

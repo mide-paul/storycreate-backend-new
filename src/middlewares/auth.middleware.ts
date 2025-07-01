@@ -1,8 +1,8 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
 import * as jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
-import { UserService } from 'src/user/user.service';
+import { UserService } from '../user/user.service';
+import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import { Request, Response, NextFunction } from 'express';
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
@@ -25,11 +25,13 @@ export class AuthMiddleware implements NestMiddleware {
       }
 
       const decoded: any = jwt.verify(token, secret);
-      if (!decoded || !decoded.id) {
+      if (!decoded || (!decoded.id && !decoded.userId)) {
         throw new UnauthorizedException('Invalid token');
       }
 
-      const user = await this.userService.findOne(decoded.id);
+      const userId = decoded.id || decoded.userId;
+
+      const user = await this.userService.findOne(userId);
       if (!user) {
         throw new UnauthorizedException('User not found');
       }
