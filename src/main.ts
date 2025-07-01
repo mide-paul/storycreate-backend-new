@@ -5,8 +5,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import * as cookieParser from "cookie-parser";
 import { json, urlencoded } from "express";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
-import { LoggingMiddleware } from "./common/middleware/logging.middleware";
-// import { StorySeeder } from './scripts/seed-stories';
+// import { LoggingMiddleware } from "./common/middleware/logging.middleware";
 
 async function bootstrap() {
   try {
@@ -51,11 +50,7 @@ async function bootstrap() {
 
     app.useGlobalFilters(new AllExceptionsFilter());
 
-    app.use(new LoggingMiddleware().use);
-
-    // // Run story seeder
-    // const storySeeder = app.get(StorySeeder);
-    // await storySeeder.seed();
+    // app.use(new LoggingMiddleware().use);
 
     const port = process.env.PORT || 8080;
     await app.listen(port);

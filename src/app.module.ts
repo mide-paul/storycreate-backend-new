@@ -10,7 +10,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { Role, RoleSchema } from './schemas/role.schema';
 import { RoleSeeder } from './scripts/seed-roles';
-import { StorySeeder } from './scripts/seed-stories';
 import { Story, StorySchema } from './stories/story.schema';
 import { AuthTokenGuard } from './interceptors/validator';
 import { PostModule } from './post/post.module';
@@ -46,7 +45,6 @@ import { JobModule } from './job/job.module';
   providers: [
     AppService,
     RoleSeeder,
-    StorySeeder,
     AuthTokenGuard,
   ],
 })
