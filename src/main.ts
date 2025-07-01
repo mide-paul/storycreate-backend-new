@@ -6,7 +6,7 @@ import * as cookieParser from "cookie-parser";
 import { json, urlencoded } from "express";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { LoggingMiddleware } from "./common/middleware/logging.middleware";
-import { StorySeeder } from './scripts/seed-stories';
+// import { StorySeeder } from './scripts/seed-stories';
 
 async function bootstrap() {
   try {
@@ -53,9 +53,9 @@ async function bootstrap() {
 
     app.use(new LoggingMiddleware().use);
 
-    // Run story seeder
-    const storySeeder = app.get(StorySeeder);
-    await storySeeder.seed();
+    // // Run story seeder
+    // const storySeeder = app.get(StorySeeder);
+    // await storySeeder.seed();
 
     const port = process.env.PORT || 8080;
     await app.listen(port);
