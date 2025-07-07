@@ -19,6 +19,7 @@ import { MessagesModule } from './messages/messages.module';
 import { LibraryModule } from './library/library.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { JobModule } from './job/job.module';
+import { BooksModule } from './books/books.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { JobModule } from './job/job.module';
     DashboardModule,
     CommunityModule,
     JobModule,
+    BooksModule,
   ],
   controllers: [AppController],
   providers: [

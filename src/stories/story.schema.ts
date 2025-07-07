@@ -55,6 +55,9 @@ export class Story {
 
   @Prop({ default: 0 })
   votes: number;
+
+  @Prop({ default: 0 })
+  rating: number;
 }
 
 export const StorySchema = SchemaFactory.createForClass(Story);

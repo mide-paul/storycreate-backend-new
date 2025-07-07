@@ -17,6 +17,7 @@ import { StoriesService } from './stories.service';
 import { CreateStoryDto } from './dto/create-story.dto';
 import { CommentsService } from './comments.service';
 import { PostCommentDto } from './dto/post-comment.dto';
+import { formatNumberWithSuffix } from '../utils/number-format.util';
 
 @Controller('books')
 export class StoriesController {
@@ -79,7 +80,21 @@ export class StoriesController {
 
   @Get(':bookId')
   async getBookById(@Param('bookId') bookId: string) {
-    return this.storiesService.getStoryById(bookId);
+    const story = await this.storiesService.getStoryById(bookId);
+    if (!story) {
+      return null;
+    }
+    // Check if story is a Mongoose document (has save method)
+    if (typeof (story as any).save === 'function') {
+      story.views = (story.views || 0) + 1;
+      await (story as any).save();
+    }
+    // Format views count for response
+    const formattedStory = {
+      ...(story && typeof (story as any).toObject === 'function' ? (story as any).toObject() : story),
+      viewsFormatted: formatNumberWithSuffix(story.views || 0),
+    };
+    return formattedStory;
   }
 
   @Get(':bookId/comments')
